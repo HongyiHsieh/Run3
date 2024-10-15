@@ -11,6 +11,7 @@ import pandas as pd
 import coffea
 import argparse
 import os
+import shutil
 
 
 # %%
@@ -24,15 +25,28 @@ class MyProcessor(processor.ProcessorABC):
         results[dataset] = {
             "count": len(events)
         }
-
-        h_photon_EB = (
+        #pT
+        h_photon_EB_pt = (
             Hist.new.StrCat([], growth=True, name="dataset_photon_EB_pt", label="Dataset")
             .Reg(40, 0, 5000, overflow=False, underflow=False, name="x", label = "[Gev]" )
             .Weight()
         )
-        h_photon_EE = (
+        h_photon_EE_pt = (
             Hist.new.StrCat([], growth=True, name="dataset_photon_EE_pt", label="Dataset")
             .Reg(40, 0, 5000, overflow=False, underflow=False, name="x", label = "[Gev]" )
+            .Weight()
+        )
+        #eta
+        h_photon_EB_eta = (
+            Hist.new
+            .StrCat([], growth=True, name="dataset_photon_EB_eta", label="dataset")
+            .Reg(40, -2.5, 2.5, overflow=False, underflow=False, name="x", label = "eta")
+            .Weight()
+        )
+        h_photon_EE_eta = (
+            Hist.new
+            .StrCat([], growth=True, name="dataset_photon_EE_eta", label="dataset")
+            .Reg(40, -2.5, 2.5, overflow=False, underflow=False, name="x", label = "eta")
             .Weight()
         )
         # separate the events into EB and EE
@@ -57,12 +71,18 @@ class MyProcessor(processor.ProcessorABC):
 
         EB_photon_selection = EB_photon_selection[:,:2]
         EE_photon_selection = EE_photon_selection[:,:2]
+        #pt
+        h_photon_EB_pt.fill(dataset_photon_EB_pt=dataset, x=ak.flatten(EB_photon_selection.pt))
+        h_photon_EE_pt.fill(dataset_photon_EE_pt=dataset, x=ak.flatten(EE_photon_selection.pt))
+        results["photon_EB_pt"] = h_photon_EB_pt
+        results["photon_EE_pt"] = h_photon_EE_pt
 
-        h_photon_EB.fill(dataset_photon_EB_pt=dataset, x=ak.flatten(EB_photon_selection.pt))
-        h_photon_EE.fill(dataset_photon_EE_pt=dataset, x=ak.flatten(EE_photon_selection.pt))
+        #eta
+        h_photon_EB_eta.fill(dataset_photon_EB_eta=dataset, x=ak.flatten(EB_photon_selection.eta))
+        h_photon_EE_eta.fill(dataset_photon_EE_eta=dataset, x=ak.flatten(EE_photon_selection.eta))
 
-        results["photon_EB_pt"] = h_photon_EB
-        results["photon_EE_pt"] = h_photon_EE
+        results["photon_EB_eta"] = h_photon_EB_eta
+        results["photon_EE_eta"] = h_photon_EE_eta
         # results["photon_EB_pt"] = photon_EB_selection
         # results["photon_EE_pt"] = photon_EE_selection
 
@@ -94,40 +114,24 @@ results = run(
 
 # %%
 # cell 23
-
+shutil.rmtree('./parquet', ignore_errors=True)
 # import mplhep as hep
 # import matplotlib.pyplot as plt
+plots_dir = './parquet'
+Path(plots_dir).mkdir(exist_ok=True)
 for key in sample_dict :
-    for EBorEE in ["EB","EE"]:
-        plots_dir = './parquet'
-        Path(plots_dir).mkdir(exist_ok=True)
-        # hep.style.use(hep.style.CMS)
+    #pT
+    value_EB_pt = results[f"photon_EB_pt"][{f"dataset_photon_EB_pt":key}].values()
+    value_EE_pt = results[f"photon_EE_pt"][{f"dataset_photon_EE_pt":key}].values()
+    value_EB_eta = results[f"photon_EB_eta"][{f"dataset_photon_EB_eta":key}].values()
+    value_EE_eta = results[f"photon_EE_eta"][{f"dataset_photon_EE_eta":key}].values()
 
-        # f, ax = plt.subplots(figsize=(10,10))
+    parquet_data={
+            'pt_EB':value_EB_pt,
+            'pt_EE':value_EE_pt,
+            'eta_EB':value_EB_eta,
+            'eta_EE':value_EE_eta
+    }
 
-        # ax.set_ylabel("Count")
-            
-        # results[f"photon_{EBorEE}_pt"][{f"dataset_photon_{EBorEE}_pt":key}].plot(ax=ax, label=f'MC_{EBorEE}')
-
-        value = results[f"photon_{EBorEE}_pt"][{f"dataset_photon_{EBorEE}_pt":key}].values()
-        edges = results[f"photon_{EBorEE}_pt"][{f"dataset_photon_{EBorEE}_pt":key}].axes.edges
-        center = [(edges[0][i] + edges[0][i+1]) / 2 for i in range(len(edges[0])-1)]
-
-        pt_data={
-                # 'pt':[np.repeat(center, value[i]) for i in range(len(value))]
-                'pt':value
-        }
-
-        df_pt = pd.DataFrame(data=pt_data)
-        df_pt.to_parquet(f'./parquet/{key}_{EBorEE}_photon_pt.parquet')
-
-        # hep.cms.label(loc=2,com=13.6)
-    
-        # plt.yscale('log')
-        # plt.xlabel('$p_T$ (GeV)')
-        # plt.title(key,fontsize=20, loc = 'left')
-        # plt.legend()
-        # plt.savefig(f"plots/{key}_photon_{EBorEE}_pt.png")
-        
-
-
+    df_pt = pd.DataFrame(data=parquet_data)
+    df_pt.to_parquet(f'./parquet/{key}_photon.parquet')
