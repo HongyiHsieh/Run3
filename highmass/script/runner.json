@@ -1,0 +1,11 @@
+{
+    "samplejson": "2022_5p6_postEE.json",
+    "workflow": "highmass",
+    "metaconditions": "Era2022_v1",
+    "taggers": [],
+    "year": {},
+    "corrections": {
+    },
+    "systematics": {
+    }
+}

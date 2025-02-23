@@ -1,0 +1,1 @@
+source /eos/home-h/hhsieh/Run3/script/run_HiggsDNA.sh && python /eos/home-h/hhsieh/Run3/script/plotter.py && python /eos/home-h/hhsieh/Run3/script/highPtId.py
